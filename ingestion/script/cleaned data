@@ -1,0 +1,16 @@
+library(tidyverse)
+library(lubridate)
+
+food <- read.csv("data/raw/FoodInspectionData.csv", stringsAsFactors = FALSE) %>%
+  distinct() %>%
+  mutate(
+    Inspection.results = str_trim(as.character(Inspection.results)),
+    Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
+  )
+
+closed <- read.csv("data/raw/Closed_Food_Establishments.csv", stringsAsFactors = FALSE) %>%
+  distinct() %>%
+  mutate(
+    Inspection.Results = str_trim(as.character(Inspection.Results)),
+    Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
+  )

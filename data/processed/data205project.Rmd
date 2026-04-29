@@ -1,0 +1,169 @@
+---
+title: "DATA 205 Capstone"
+subtitle: "Food inspections and closed establishments"
+author: "Ousmane Kandji"
+output: html_document
+---
+
+```{r setup, message=FALSE}
+library(tidyverse)
+library(knitr)
+library(lubridate)
+```
+
+## Project idea
+
+This report uses:
+- **FoodInspectionData.csv** for all inspection outcomes
+- **Closed_Food_Establishments.csv** for inspections that ended in **Facility Closed**
+
+Goal: keep a simple public-health story with 3 visuals:
+1) overall inspection outcomes,
+2) most common issues among closed establishments,
+3) monthly trend in closures.
+
+```{r load-food}
+food <- read.csv("FoodInspectionData.csv", stringsAsFactors = FALSE) %>%
+  distinct() %>%
+  mutate(
+    Inspection.results = str_trim(as.character(Inspection.results)),
+    Inspection.Date = suppressWarnings(lubridate::mdy(as.character(Inspection.Date)))
+  )
+```
+
+```{r load-closed}
+closed <- read.csv("Closed_Food_Establishments.csv", stringsAsFactors = FALSE) %>%
+  distinct() %>%
+  mutate(
+    Inspection.Results = str_trim(as.character(Inspection.Results)),
+    Inspection.Date = suppressWarnings(lubridate::mdy(as.character(Inspection.Date)))
+  )
+```
+
+## Quick data check
+
+```{r}
+closure_share <- nrow(closed) / nrow(food)
+
+kable(
+  tibble(
+    Metric = c(
+      "Inspection rows (deduplicated)",
+      "Closed-establishment rows (deduplicated)",
+      "Distinct closed establishments",
+      "Date range in closure file",
+      "Closure share (closed rows / all inspection rows)"
+    ),
+    Value = c(
+      nrow(food),
+      nrow(closed),
+      n_distinct(closed$Establishment.ID),
+      paste(
+        format(min(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d"),
+        "to",
+        format(max(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d")
+      ),
+      sprintf("%.2f%%", 100 * closure_share)
+    )
+  )
+)
+```
+
+## Visual 1: Overall inspection outcomes
+
+```{r fig.width=8, fig.height=5}
+food %>%
+  count(Inspection.results, sort = TRUE) %>%
+  mutate(Inspection.results = fct_reorder(Inspection.results, n)) %>%
+  ggplot(aes(x = Inspection.results, y = n)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = format(n, big.mark = ",")), hjust = 1.05, color = "white", size = 3) +
+  coord_flip() +
+  labs(
+    title = "Inspection outcomes in FoodInspectionData",
+    x = "Inspection result",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+## Visual 2: Most common out-of-compliance issues among closures
+
+```{r fig.width=9, fig.height=6}
+violation_cols <- c(
+  "Food.from.Approved.Source..C.",
+  "Food.Protected.from.Contamination..C.",
+  "Ill.Workers.Restricted..C.",
+  "Proper.Hand.Washing..C.",
+  "Cooling.Time.and.Temperature..C.",
+  "Cold.Holding.Temperature..C.",
+  "Hot.Holding.Temperature..C.",
+  "Cooking.Time.and.Temperature..C.",
+  "Reheating.Time.and.Temperature..C.",
+  "Hot.and.Cold.Running.Water.Provided..C.",
+  "Proper.Sewage.Disposal..C.",
+  "Toxic.Substances...Pesticides",
+  "Rodent.and.Insects"
+)
+
+closed %>%
+  select(any_of(violation_cols)) %>%
+  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
+  mutate(status = str_trim(as.character(status))) %>%
+  filter(!is.na(status), status == "Out of Compliance") %>%
+  count(rule, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(rule = str_replace_all(rule, "\\.", " "),
+         rule = fct_reorder(rule, n)) %>%
+  ggplot(aes(x = rule, y = n)) +
+  geom_col(fill = "firebrick") +
+  coord_flip() +
+  labs(
+    title = "Top out-of-compliance issues in closed establishments",
+    x = "Inspection rule",
+    y = "Count of out-of-compliance findings"
+  ) +
+  theme_minimal()
+```
+
+## Visual 3: Closure trend over time
+
+```{r fig.width=9, fig.height=4}
+closed %>%
+  mutate(month = lubridate::floor_date(Inspection.Date, "month")) %>%
+  filter(!is.na(month)) %>%
+  count(month) %>%
+  ggplot(aes(month, n)) +
+  geom_line(color = "darkgreen", linewidth = 0.9) +
+  geom_point(color = "darkgreen", size = 1.8) +
+  labs(title = "Monthly number of closure inspections", x = NULL, y = "Count") +
+  theme_minimal()
+```
+
+## Additional view: Top cities with closure inspections
+
+```{r fig.width=8, fig.height=5}
+closed %>%
+  mutate(City = str_to_title(str_trim(as.character(City)))) %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(City = fct_reorder(City, n)) %>%
+  ggplot(aes(x = City, y = n)) +
+  geom_col(fill = "mediumpurple4") +
+  coord_flip() +
+  labs(
+    title = "Top 10 cities by number of closure inspections",
+    x = "City",
+    y = "Closure inspection count"
+  ) +
+  theme_minimal()
+```
+
+
+## Note for your write-up
+
+Suggested simple narrative:
+- Most inspections are not closures, but closure events continue to happen each month.
+- A small set of out-of-compliance issues appears repeatedly in closure cases.
+- This helps target prevention efforts (training, follow-up, and temperature/sanitation checks).

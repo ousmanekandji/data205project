@@ -1,1 +1,16 @@
+library(tidyverse)
 
+food <- read.csv("data/raw/FoodInspectionData.csv")
+
+# Inspection outcomes
+food %>%
+  count(Inspection.results)
+
+# Top violations
+food %>%
+  count(Violation.Description, sort = TRUE)
+
+# Time trend
+food %>%
+  mutate(year = lubridate::year(Inspection.Date)) %>%
+  count(year)

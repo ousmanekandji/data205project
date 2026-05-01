@@ -1,16 +1,34 @@
 library(tidyverse)
 library(lubridate)
 
-food <- read.csv("data/raw/FoodInspectionData.csv", stringsAsFactors = FALSE) %>%
+# Load raw data
+food_raw <- read.csv("data/raw/FoodInspectionData.csv", stringsAsFactors = FALSE)
+closed_raw <- read.csv("data/raw/Closed_Food_Establishments.csv", stringsAsFactors = FALSE)
+
+# Clean food data
+food <- food_raw %>%
   distinct() %>%
   mutate(
     Inspection.results = str_trim(as.character(Inspection.results)),
+    City = str_to_title(str_trim(as.character(City))),
+    Zip = str_pad(str_sub(str_replace_all(as.character(Zip), "[^0-9]", ""), 1, 5), 5, pad = "0"),
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
 
-closed <- read.csv("data/raw/Closed_Food_Establishments.csv", stringsAsFactors = FALSE) %>%
+# Clean closed data
+closed <- closed_raw %>%
   distinct() %>%
   mutate(
     Inspection.Results = str_trim(as.character(Inspection.Results)),
+    City = str_to_title(str_trim(as.character(City))),
+    Zip = str_pad(str_sub(str_replace_all(as.character(Zip), "[^0-9]", ""), 1, 5), 5, pad = "0"),
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
+
+# Save cleaned data
+dir.create("data/processed", showWarnings = FALSE)
+
+write_csv(food, "data/processed/FoodInspectionData_cleaned.csv")
+write_csv(closed, "data/processed/Closed_Food_Establishments_cleaned.csv")
+
+print("Cleaning complete")

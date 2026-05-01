@@ -1,0 +1,15 @@
+# Data Ingestion
+
+Raw datasets:
+- FoodInspectionData.csv
+- Closed_Food_Establishments.csv
+
+Cleaning steps:
+- Removed duplicate rows
+- Standardized text fields (City, results)
+- Cleaned ZIP codes (5-digit format)
+- Converted Inspection.Date to date format
+
+Output:
+- data/processed/FoodInspectionData_cleaned.csv
+- data/processed/Closed_Food_Establishments_cleaned.csv

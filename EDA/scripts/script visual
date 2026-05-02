@@ -1,0 +1,50 @@
+library(tidyverse)
+library(lubridate)
+
+# Load cleaned data
+food <- read_csv("FoodInspectionData_cleaned.csv")
+closed <- read_csv("Closed_Food_Establishments_cleaned.csv")
+
+# Visual 1: Inspection outcomes
+food %>%
+  count(Inspection.results, sort = TRUE) %>%
+  ggplot(aes(x = reorder(Inspection.results, n), y = n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  theme_minimal()
+
+# Visual 2: Top violations
+violation_cols <- c(
+  "Food.from.Approved.Source..C.",
+  "Food.Protected.from.Contamination..C.",
+  "Ill.Workers.Restricted..C.",
+  "Proper.Hand.Washing..C.",
+  "Cooling.Time.and.Temperature..C.",
+  "Cold.Holding.Temperature..C.",
+  "Hot.Holding.Temperature..C.",
+  "Cooking.Time.and.Temperature..C.",
+  "Reheating.Time.and.Temperature..C.",
+  "Hot.and.Cold.Running.Water.Provided..C.",
+  "Proper.Sewage.Disposal..C.",
+  "Toxic.Substances...Pesticides",
+  "Rodent.and.Insects"
+)
+
+closed %>%
+  select(any_of(violation_cols)) %>%
+  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
+  filter(status == "Out of Compliance") %>%
+  count(rule, sort = TRUE) %>%
+  ggplot(aes(x = reorder(rule, n), y = n)) +
+  geom_col(fill = "firebrick") +
+  coord_flip() +
+  theme_minimal()
+
+# Visual 3: Closure trend
+closed %>%
+  mutate(month = floor_date(Inspection.Date, "month")) %>%
+  count(month) %>%
+  ggplot(aes(month, n)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal()

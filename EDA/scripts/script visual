@@ -48,3 +48,23 @@ closed %>%
   geom_line() +
   geom_point() +
   theme_minimal()
+
+# visual 4: Top cities with closure inspections
+
+```{r fig.width=8, fig.height=5}
+closed %>%
+  mutate(City = str_to_title(str_trim(as.character(City)))) %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(City = fct_reorder(City, n)) %>%
+  ggplot(aes(x = City, y = n)) +
+  geom_col(fill = "mediumpurple4") +
+  coord_flip() +
+  labs(
+    title = "Top 10 cities by number of closure inspections",
+    x = "City",
+    y = "Closure inspection count"
+  ) +
+  theme_minimal()
+```

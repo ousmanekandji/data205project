@@ -1,11 +1,11 @@
 library(tidyverse)
 library(lubridate)
 
-# Load raw data
-food_raw <- read.csv("data/raw/FoodInspectionData.csv", stringsAsFactors = FALSE)
-closed_raw <- read.csv("data/raw/Closed_Food_Establishments.csv", stringsAsFactors = FALSE)
+# 1) Load raw datasets
+food_raw <- read.csv("FoodInspectionData.csv", stringsAsFactors = FALSE)
+closed_raw <- read.csv("Closed_Food_Establishments.csv", stringsAsFactors = FALSE)
 
-# Clean food data
+# 2) Clean datasets
 food <- food_raw %>%
   distinct() %>%
   mutate(
@@ -15,7 +15,6 @@ food <- food_raw %>%
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
 
-# Clean closed data
 closed <- closed_raw %>%
   distinct() %>%
   mutate(
@@ -25,10 +24,6 @@ closed <- closed_raw %>%
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
 
-# Save cleaned data
-dir.create("data/processed", showWarnings = FALSE)
-
-write_csv(food, "data/processed/FoodInspectionData_cleaned.csv")
-write_csv(closed, "data/processed/Closed_Food_Establishments_cleaned.csv")
-
-print("Cleaning complete")
+# 3) Export cleaned datasets
+write_csv(food, "FoodInspectionData_cleaned.csv")
+write_csv(closed, "Closed_Food_Establishments_cleaned.csv")

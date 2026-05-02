@@ -1,0 +1,14 @@
+# Exploratory Data Analysis
+
+## Purpose
+To understand the structure and patterns in the data before deeper analysis.
+
+## Key Findings
+
+- Most inspections do not result in closure
+- A small number of violations appear frequently in closure cases
+- Closures occur consistently over time
+- Some cities show higher counts of closures
+
+## Notes
+These findings are descriptive and do not imply causation.

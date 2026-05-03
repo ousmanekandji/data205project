@@ -1,0 +1,291 @@
+---
+title: "DATA 205 Capstone"
+subtitle: "Food inspections and closed establishments"
+author: "Ousmane Kandji"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  fig.align = "center"
+)
+
+library(tidyverse)
+library(knitr)
+library(lubridate)
+
+# Cities need enough inspections for closure_rate to be stable.
+MIN_INSPECTIONS_CITY <- 50L
+```
+
+## Project idea
+
+This report uses:
+
+- **FoodInspectionData.csv** for all inspection outcomes
+- **Closed_Food_Establishments.csv** for inspections that ended in **Facility Closed**
+
+Goal: provide a coherent workflow from raw data to cleaned data, EDA, and final visuals.
+
+## 1) Load raw datasets
+
+```{r load-raw}
+food_raw <- read.csv("FoodInspectionData.csv", stringsAsFactors = FALSE)
+closed_raw <- read.csv("Closed_Food_Establishments.csv", stringsAsFactors = FALSE)
+```
+
+## 2) Clean datasets
+
+```{r clean-data}
+clean_zip <- function(x) {
+  digits <- str_replace_all(as.character(x), "[^0-9]", "")
+  padded <- str_pad(str_sub(digits, 1, 5), width = 5, pad = "0")
+  if_else(digits == "", NA_character_, padded)
+}
+
+food <- food_raw %>%
+  distinct() %>%
+  mutate(
+    Inspection.results = str_trim(as.character(Inspection.results)),
+    City = str_to_title(str_trim(as.character(City))),
+    Zip = clean_zip(Zip),
+    Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
+  )
+
+closed <- closed_raw %>%
+  distinct() %>%
+  mutate(
+    Inspection.Results = str_trim(as.character(Inspection.Results)),
+    City = str_to_title(str_trim(as.character(City))),
+    Zip = clean_zip(Zip),
+    Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
+  )
+```
+
+## 3) Export cleaned datasets
+
+```{r export-cleaned}
+write_csv(food, "FoodInspectionData_cleaned.csv")
+write_csv(closed, "Closed_Food_Establishments_cleaned.csv")
+```
+
+## 4) EDA summary
+
+```{r eda-summary}
+closure_row_share <- nrow(closed) / nrow(food)
+
+kable(
+  tibble(
+    Metric = c(
+      "Raw inspection rows",
+      "Raw closure rows",
+      "Inspection rows (deduplicated)",
+      "Closed-establishment rows (deduplicated)",
+      "Distinct closed establishments",
+      "Date range in closure file",
+      "Closure rows / all inspection rows (descriptive row ratio)"
+    ),
+    Value = c(
+      nrow(food_raw),
+      nrow(closed_raw),
+      nrow(food),
+      nrow(closed),
+      n_distinct(closed$Establishment.ID, na.rm = TRUE),
+      paste(
+        format(min(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d"),
+        "to",
+        format(max(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d")
+      ),
+      sprintf("%.2f%%", 100 * closure_row_share)
+    )
+  )
+)
+```
+
+## 5) EDA: Missingness check (selected fields)
+
+```{r eda-missingness}
+missing_tbl <- bind_rows(
+  tibble(
+    dataset = "food",
+    variable = c("Inspection.results", "Inspection.Date", "Zip"),
+    missing_n = c(
+      sum(is.na(food$Inspection.results) | food$Inspection.results == ""),
+      sum(is.na(food$Inspection.Date)),
+      sum(is.na(food$Zip) | food$Zip == "")
+    )
+  ),
+  tibble(
+    dataset = "closed",
+    variable = c("Inspection.Results", "Inspection.Date", "Zip"),
+    missing_n = c(
+      sum(is.na(closed$Inspection.Results) | closed$Inspection.Results == ""),
+      sum(is.na(closed$Inspection.Date)),
+      sum(is.na(closed$Zip) | closed$Zip == "")
+    )
+  )
+)
+
+kable(missing_tbl)
+```
+
+## Visual 1: Overall inspection outcomes
+
+```{r visual-outcomes, fig.width=8, fig.height=5}
+food %>%
+  count(Inspection.results, sort = TRUE) %>%
+  mutate(Inspection.results = fct_reorder(Inspection.results, n)) %>%
+  ggplot(aes(x = Inspection.results, y = n)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = format(n, big.mark = ",")), hjust = 1.05, color = "white", size = 3) +
+  coord_flip() +
+  labs(
+    title = "Inspection outcomes in FoodInspectionData",
+    x = "Inspection result",
+    y = "Count"
+  ) +
+  theme_minimal()
+```
+
+## Visual 2: Most common out-of-compliance issues among closures
+
+```{r visual-violations, fig.width=9, fig.height=6}
+violation_cols <- c(
+  "Food.from.Approved.Source..C.",
+  "Food.Protected.from.Contamination..C.",
+  "Ill.Workers.Restricted..C.",
+  "Proper.Hand.Washing..C.",
+  "Cooling.Time.and.Temperature..C.",
+  "Cold.Holding.Temperature..C.",
+  "Hot.Holding.Temperature..C.",
+  "Cooking.Time.and.Temperature..C.",
+  "Reheating.Time.and.Temperature..C.",
+  "Hot.and.Cold.Running.Water.Provided..C.",
+  "Proper.Sewage.Disposal..C.",
+  "Toxic.Substances...Pesticides",
+  "Rodent.and.Insects"
+)
+
+closed %>%
+  select(any_of(violation_cols)) %>%
+  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
+  mutate(status = str_trim(as.character(status))) %>%
+  filter(!is.na(status), status == "Out of Compliance") %>%
+  count(rule, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(
+    rule = str_replace_all(rule, "\\.", " "),
+    rule = fct_reorder(rule, n)
+  ) %>%
+  ggplot(aes(x = rule, y = n)) +
+  geom_col(fill = "firebrick") +
+  coord_flip() +
+  labs(
+    title = "Top out-of-compliance issues in closed establishments",
+    x = "Inspection rule",
+    y = "Count of out-of-compliance findings"
+  ) +
+  theme_minimal()
+```
+
+## Visual 3: Closure trend over time
+
+```{r visual-trend, fig.width=9, fig.height=4}
+closed %>%
+  mutate(month = floor_date(Inspection.Date, "month")) %>%
+  filter(!is.na(month)) %>%
+  count(month) %>%
+  ggplot(aes(month, n)) +
+  geom_line(color = "darkgreen", linewidth = 0.9) +
+  geom_point(color = "darkgreen", size = 1.8) +
+  labs(title = "Monthly number of closure inspections", x = NULL, y = "Count") +
+  theme_minimal()
+```
+
+Closure counts by month are descriptive; any formal trend test assumes independent months and is optional exploratory follow-up.
+
+## Top cities by closure inspection count
+
+```{r visual-cities-count, fig.width=8, fig.height=5}
+closed %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(City = fct_reorder(City, n)) %>%
+  ggplot(aes(x = City, y = n)) +
+  geom_col(fill = "mediumpurple4") +
+  coord_flip() +
+  labs(
+    title = "Top 10 cities by number of closure inspections",
+    x = "City",
+    y = "Closure inspection count"
+  ) +
+  theme_minimal()
+```
+
+## City closure rate (share of inspection rows)
+
+`closure_rate = closure_rows / inspection_rows` per city. Cities with fewer than `r MIN_INSPECTIONS_CITY` inspections in the main file are excluded so tiny denominators do not dominate.
+
+```{r city-risk-table}
+city_risk <- food %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, name = "inspection_rows") %>%
+  left_join(
+    closed %>%
+      filter(!is.na(City), City != "") %>%
+      count(City, name = "closure_rows"),
+    by = "City"
+  ) %>%
+  mutate(
+    closure_rows = replace_na(as.integer(closure_rows), 0L),
+    closure_rate = closure_rows / inspection_rows
+  ) %>%
+  filter(inspection_rows >= MIN_INSPECTIONS_CITY)
+
+kable(
+  city_risk %>%
+    arrange(desc(closure_rate), desc(inspection_rows)) %>%
+    mutate(closure_rate_pct = sprintf("%.3f%%", 100 * closure_rate)) %>%
+    select(City, inspection_rows, closure_rows, closure_rate_pct) %>%
+    slice_head(n = 25)
+)
+```
+
+```{r city-risk-plot, fig.width=9, fig.height=6}
+city_risk %>%
+  arrange(desc(closure_rate)) %>%
+  slice_head(n = 15) %>%
+  mutate(City = fct_reorder(City, closure_rate)) %>%
+  ggplot(aes(x = City, y = closure_rate)) +
+  geom_col(fill = "darkslateblue", alpha = 0.85) +
+  coord_flip() +
+  scale_y_continuous(labels = function(x) paste0(round(100 * x, 3), "%")) +
+  labs(
+    title = sprintf(
+      "City closure rate: closure rows / inspection rows (min %d inspections)",
+      MIN_INSPECTIONS_CITY
+    ),
+    x = NULL,
+    y = "Closure rate"
+  ) +
+  theme_minimal()
+```
+
+Higher closure rate means closure events in the extract account for a larger share of that city’s rows in the main dataset—interpret cautiously (linkage and extracts are not a perfect census of “all closures”).
+
+## Note for your write-up
+
+Suggested simple narrative:
+
+- Most inspections are not closures, but closure events continue to happen each month.
+- A small set of out-of-compliance issues appears repeatedly in closure cases.
+- This helps target prevention efforts (training, follow-up, and temperature/sanitation checks).
+
+Limitations to mention:
+
+- `Closed_Food_Establishments.csv` is event-focused and much smaller than full inspection records.
+- Results are descriptive EDA, not causal evidence.
+- Some values may be missing or inconsistently entered in source files.

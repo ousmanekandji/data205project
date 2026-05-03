@@ -3,33 +3,28 @@ Food Inspection Outcomes and Closed Establishments Analysis
 DATA 205 Capstone Report
 
 
-## Introduction
-This project analyzes food establishment inspection records and closure data to identify patterns related to public health risks and business closures. The purpose of the study is to understand common inspection outcomes, recurring violations, geographic differences, and trends over time.
-## Datasets Used
-1. FoodInspectionData.csv – contains general food inspection records.
-2. Closed_Food_Establishments.csv – contains inspections that resulted in facility closure.
+Project Overview
+Food inspection records show that most establishments pass inspections, but closures still occur consistently over time due to recurring violations. This project investigates what drives those closures by asking: what inspection outcomes are most common, which violations appear most frequently in closure cases, and whether certain cities experience higher closure risk than others. To answer this, I worked with two datasets, cleaned and standardized them in R, performed exploratory data analysis, and examined patterns across time and location to better understand food safety risks.
 
-## Data Cleaning and Preparation
-The datasets were cleaned in R using tidyverse packages. Duplicate rows were removed, city names were standardized, ZIP codes were converted to five-digit format, text spacing issues were fixed, and dates were converted into usable date formats. Missing values were identified and handled where necessary.
+Datasets Used
+The first dataset, FoodInspectionData.csv, contains general inspection results for food establishments and is used to analyze overall inspection outcomes and trends. The second dataset, Closed_Food_Establishments.csv, focuses specifically on inspections that resulted in facility closures, allowing for deeper analysis of high-risk violations and closure patterns. Together, these datasets provide both a broad and focused view of food safety enforcement.
 
-## Research Questions
-•	What are the most common inspection outcomes?
-•	What percentage of inspections resulted in closures?
-•	Which violations appear most often in closure cases?
-•	Are closures increasing or decreasing over time?
-•	Which cities have the highest closure counts and closure rates?
+Tools Used in This Project
+All analysis was performed in R, using the tidyverse for data manipulation and cleaning, lubridate for handling dates, and ggplot2 for visualization. These tools were used to transform raw inspection records into meaningful insights through structured analysis and clear visual representation.
 
-## Methods
-Exploratory Data Analysis (EDA) was performed using summary statistics and visualizations. Bar charts were used to compare inspection outcomes and violation frequencies. Line charts were used to evaluate monthly closure trends. City-level comparisons were made using closure counts and closure rates.
+Analysis
+The exploratory data analysis examines inspection outcomes, violation frequencies, and closure trends over time. Bar charts are used to compare inspection results and identify the most common violations among closed establishments, while line charts track how closures change month to month. A key part of the analysis is comparing cities by both total closure counts and relative closure rates, which provides a better understanding of risk beyond just raw numbers.
+The analysis focuses on identifying patterns rather than building predictive models. By combining inspection data with closure-specific records, the project highlights which violations are most associated with shutdowns and how those risks vary across different locations.
 
-## Key Findings
-•	Most inspections did not result in closure.
-•	Closure events continued to occur across multiple months.
-•	Temperature control, contamination, and sanitation violations appeared repeatedly in closure cases.
-•	Some cities had higher closure rates relative to their total inspections.
+Key Findings
+The results show that most inspections result in a pass, meaning closures are relatively rare compared to total inspections. However, closure events still occur consistently over time, indicating ongoing public health concerns. A small number of violations appear repeatedly in closure cases, particularly those related to temperature control, food contamination, and sanitation. These issues are strong indicators of higher risk. Additionally, some cities have higher closure rates relative to their total number of inspections, suggesting that risk is not evenly distributed geographically.
 
-## Limitations
-The closure dataset is smaller than the full inspection dataset and may not represent every closure event. Some records may contain missing or inconsistently entered values. This analysis is descriptive and does not establish causation.
+Limitations
+The closure dataset is significantly smaller than the full inspection dataset and may not capture every closure event. Some records may also contain missing or inconsistently formatted values, which can affect accuracy. This analysis is descriptive and does not establish causal relationships between violations and closures.
+
+Conclusion
+This project demonstrates how food inspection data can be cleaned, organized, and analyzed to uncover meaningful patterns in public health and safety. By identifying recurring violations and geographic differences in closure risk, the findings can help inform better targeting of inspections, training, and prevention efforts.
+
 
 ## Conclusion
 This project demonstrates how public inspection data can be cleaned and analyzed to uncover useful food safety trends. The findings may help health departments focus prevention efforts, training, and enforcement in higher-risk areas.

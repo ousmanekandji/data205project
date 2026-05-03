@@ -5,13 +5,20 @@ library(lubridate)
 food_raw <- read.csv("FoodInspectionData.csv", stringsAsFactors = FALSE)
 closed_raw <- read.csv("Closed_Food_Establishments.csv", stringsAsFactors = FALSE)
 
-# 2) Clean datasets
+# Cleaning function
+clean_zip <- function(x) {
+  digits <- str_replace_all(as.character(x), "[^0-9]", "")
+  padded <- str_pad(str_sub(digits, 1, 5), width = 5, pad = "0")
+  if_else(digits == "", NA_character_, padded)
+}
+
+# Clean datasets
 food <- food_raw %>%
   distinct() %>%
   mutate(
     Inspection.results = str_trim(as.character(Inspection.results)),
     City = str_to_title(str_trim(as.character(City))),
-    Zip = str_pad(str_sub(str_replace_all(as.character(Zip), "[^0-9]", ""), 1, 5), 5, pad = "0"),
+    Zip = clean_zip(Zip),
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
 
@@ -20,10 +27,10 @@ closed <- closed_raw %>%
   mutate(
     Inspection.Results = str_trim(as.character(Inspection.Results)),
     City = str_to_title(str_trim(as.character(City))),
-    Zip = str_pad(str_sub(str_replace_all(as.character(Zip), "[^0-9]", ""), 1, 5), 5, pad = "0"),
+    Zip = clean_zip(Zip),
     Inspection.Date = suppressWarnings(mdy(as.character(Inspection.Date)))
   )
 
-# 3) Export cleaned datasets
-write_csv(food, "FoodInspectionData_cleaned.csv")
-write_csv(closed, "Closed_Food_Establishments_cleaned.csv")
+# Export cleaned data
+write_csv(food, "data/FoodInspectionData_cleaned.csv")
+write_csv(closed, "data/Closed_Food_Establishments_cleaned.csv")

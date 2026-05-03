@@ -1,110 +1,24 @@
 library(tidyverse)
-library(knitr)
 library(lubridate)
 
-  {r load-food}
-  food <- read.csv("FoodInspectionData.csv", stringsAsFactors = FALSE) %>%
-  distinct() %>%
-  mutate(
-    Inspection.results = str_trim(as.character(Inspection.results)),
-    Inspection.Date = suppressWarnings(lubridate::mdy(as.character(Inspection.Date)))
-  )
+food <- read_csv("FoodInspectionData_cleaned.csv")
+closed <- read_csv("Closed_Food_Establishments_cleaned.csv")
 
-  {r load-closed}
-closed <- read.csv("Closed_Food_Establishments.csv", stringsAsFactors = FALSE) %>%
-  distinct() %>%
-  mutate(
-    Inspection.Results = str_trim(as.character(Inspection.Results)),
-    Inspection.Date = suppressWarnings(lubridate::mdy(as.character(Inspection.Date)))
-  )
+# Closure rate
+closure_rate <- nrow(closed) / nrow(food)
+closure_rate
 
-  Visual 1: Overall inspection outcomes
+# City risk
+total <- food %>% count(City)
+closed_counts <- closed %>% count(City)
 
-```{r fig.width=8, fig.height=5}
-food %>%
-  count(Inspection.results, sort = TRUE) %>%
-  mutate(Inspection.results = fct_reorder(Inspection.results, n)) %>%
-  ggplot(aes(x = Inspection.results, y = n)) +
-  geom_col(fill = "steelblue") +
-  geom_text(aes(label = format(n, big.mark = ",")), hjust = 1.05, color = "white", size = 3) +
-  coord_flip() +
-  labs(
-    title = "Inspection outcomes in FoodInspectionData",
-    x = "Inspection result",
-    y = "Count"
-  ) +
-  theme_minimal()
-```
+left_join(total, closed_counts, by = "City") %>%
+  mutate(rate = n.y / n.x)
 
-    ## Visual 2: Most common out-of-compliance issues among closures
-
-```{r fig.width=9, fig.height=6}
-violation_cols <- c(
-  "Food.from.Approved.Source..C.",
-  "Food.Protected.from.Contamination..C.",
-  "Ill.Workers.Restricted..C.",
-  "Proper.Hand.Washing..C.",
-  "Cooling.Time.and.Temperature..C.",
-  "Cold.Holding.Temperature..C.",
-  "Hot.Holding.Temperature..C.",
-  "Cooking.Time.and.Temperature..C.",
-  "Reheating.Time.and.Temperature..C.",
-  "Hot.and.Cold.Running.Water.Provided..C.",
-  "Proper.Sewage.Disposal..C.",
-  "Toxic.Substances...Pesticides",
-  "Rodent.and.Insects"
-)
-
-closed %>%
-  select(any_of(violation_cols)) %>%
-  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
-  mutate(status = str_trim(as.character(status))) %>%
-  filter(!is.na(status), status == "Out of Compliance") %>%
-  count(rule, sort = TRUE) %>%
-  slice_head(n = 10) %>%
-  mutate(rule = str_replace_all(rule, "\\.", " "),
-         rule = fct_reorder(rule, n)) %>%
-  ggplot(aes(x = rule, y = n)) +
-  geom_col(fill = "firebrick") +
-  coord_flip() +
-  labs(
-    title = "Top out-of-compliance issues in closed establishments",
-    x = "Inspection rule",
-    y = "Count of out-of-compliance findings"
-  ) +
-  theme_minimal()
-```
-
-  ## Visual 3: Closure trend over time
-
-```{r fig.width=9, fig.height=4}
-closed %>%
-  mutate(month = lubridate::floor_date(Inspection.Date, "month")) %>%
-  filter(!is.na(month)) %>%
+# Trend correlation
+trend_df <- closed %>%
+  mutate(month = floor_date(Inspection.Date, "month")) %>%
   count(month) %>%
-  ggplot(aes(month, n)) +
-  geom_line(color = "darkgreen", linewidth = 0.9) +
-  geom_point(color = "darkgreen", size = 1.8) +
-  labs(title = "Monthly number of closure inspections", x = NULL, y = "Count") +
-  theme_minimal()
-```
+  mutate(time = row_number())
 
-   Top cities with closure inspections
-
-```{r fig.width=8, fig.height=5}
-closed %>%
-  mutate(City = str_to_title(str_trim(as.character(City)))) %>%
-  filter(!is.na(City), City != "") %>%
-  count(City, sort = TRUE) %>%
-  slice_head(n = 10) %>%
-  mutate(City = fct_reorder(City, n)) %>%
-  ggplot(aes(x = City, y = n)) +
-  geom_col(fill = "mediumpurple4") +
-  coord_flip() +
-  labs(
-    title = "Top 10 cities by number of closure inspections",
-    x = "City",
-    y = "Closure inspection count"
-  ) +
-  theme_minimal()
-```
+cor.test(trend_df$time, trend_df$n)

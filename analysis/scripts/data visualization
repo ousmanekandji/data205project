@@ -4,21 +4,19 @@ library(lubridate)
 food <- read_csv("FoodInspectionData_cleaned.csv")
 closed <- read_csv("Closed_Food_Establishments_cleaned.csv")
 
-# Closure rate
-closure_rate <- nrow(closed) / nrow(food)
-closure_rate
+MIN_INSPECTIONS_CITY <- 50
 
-# City risk
-total <- food %>% count(City)
-closed_counts <- closed %>% count(City)
-
-left_join(total, closed_counts, by = "City") %>%
-  mutate(rate = n.y / n.x)
-
-# Trend correlation
-trend_df <- closed %>%
-  mutate(month = floor_date(Inspection.Date, "month")) %>%
-  count(month) %>%
-  mutate(time = row_number())
-
-cor.test(trend_df$time, trend_df$n)
+city_risk <- food %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, name = "inspection_rows") %>%
+  left_join(
+    closed %>%
+      filter(!is.na(City), City != "") %>%
+      count(City, name = "closure_rows"),
+    by = "City"
+  ) %>%
+  mutate(
+    closure_rows = replace_na(as.integer(closure_rows), 0L),
+    closure_rate = closure_rows / inspection_rows
+  ) %>%
+  filter(inspection_rows >= MIN_INSPECTIONS_CITY)

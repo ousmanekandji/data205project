@@ -1,8 +1,10 @@
-# Statistical Analysis
+Analysis focuses on city-level closure risk.
 
-- Chi-square tests show a strong association between violations and closure outcomes
-- City is significantly associated with inspection results
-- Correlation analysis shows a slight downward trend in closures over time
-- Some cities have higher closure rates than others
+We compute:
+closure_rate = closure_rows / inspection_rows
 
-These results suggest targeted intervention areas.
+This helps identify higher-risk areas.
+
+Limitations:
+- Data is descriptive
+- Not causal

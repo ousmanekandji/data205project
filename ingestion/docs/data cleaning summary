@@ -6,14 +6,11 @@
 
 ## Cleaning Steps
 
-1. Removed duplicate rows using `distinct()`
-2. Standardized text fields:
-   - Trimmed whitespace
-   - Converted city names to title case
-3. Cleaned ZIP codes:
-   - Removed non-numeric characters
-   - Kept first 5 digits
-4. Converted Inspection.Date to proper date format using `mdy()`
+- Removed duplicates
+- Standardized ZIP codes
+- Cleaned city names
+- Converted dates
+- Exported cleaned datasets
 
 ## Output
 - FoodInspectionData_cleaned.csv

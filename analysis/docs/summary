@@ -1,10 +1,41 @@
-Analysis focuses on city-level closure risk.
+# Statistical Analysis
 
-We compute:
-closure_rate = closure_rows / inspection_rows
+This folder contains statistical testing and modeling used to evaluate relationships between critical violations and inspection outcomes.
 
-This helps identify higher-risk areas.
+## Purpose
 
-Limitations:
-- Data is descriptive
-- Not causal
+The goal of this analysis is to determine whether critical violations are associated with failed inspections and increased odds of facility closure.
+
+## Methods Used
+
+### 1. Chi-Square Test
+
+A chi-square test was used to evaluate whether inspection outcomes were associated with the presence of critical violations.
+
+#### Null Hypothesis (H0)
+There is no relationship between inspection outcome and the presence of critical violations.
+
+#### Alternative Hypothesis (H1)
+There is a relationship between inspection outcome and the presence of critical violations.
+
+The chi-square test compares passed and failed inspections against whether at least one critical violation was present.
+
+---
+
+### 2. Logistic Regression
+
+A logistic regression model was used to estimate how increases in critical violations affect the odds of facility closure.
+
+#### Model
+- Outcome variable: `is_closed`
+- Predictor variable: `critical_count`
+
+The model estimates whether inspections with more critical violations are more likely to result in closure outcomes.
+
+---
+
+## Main Findings
+
+- Failed inspections were more likely to contain critical violations than passed inspections.
+- Higher critical violation counts were associated with increased odds of closure outcomes.
+- Most passed inspections had zero critical violations, while failed inspections showed a wider distribution of critical findings.

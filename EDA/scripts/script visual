@@ -1,20 +1,10 @@
 library(tidyverse)
 library(lubridate)
+library(knitr)
 
-# Load cleaned data
-food <- read_csv("FoodInspectionData_cleaned.csv")
-closed <- read_csv("Closed_Food_Establishments_cleaned.csv")
+MIN_INSPECTIONS_CITY <- 50L
 
-# Visual 1: Inspection outcomes
-food %>%
-  count(Inspection.results, sort = TRUE) %>%
-  ggplot(aes(x = reorder(Inspection.results, n), y = n)) +
-  geom_col(fill = "steelblue") +
-  coord_flip() +
-  theme_minimal()
-
-# Visual 2: Top violations
-violation_cols <- c(
+violation_cols_food <- c(
   "Food.from.Approved.Source..C.",
   "Food.Protected.from.Contamination..C.",
   "Ill.Workers.Restricted..C.",
@@ -27,44 +17,194 @@ violation_cols <- c(
   "Hot.and.Cold.Running.Water.Provided..C.",
   "Proper.Sewage.Disposal..C.",
   "Toxic.Substances...Pesticides",
-  "Rodent.and.Insects"
+  "Rodents.and.Insects"
 )
 
-closed %>%
-  select(any_of(violation_cols)) %>%
-  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
-  filter(status == "Out of Compliance") %>%
-  count(rule, sort = TRUE) %>%
-  ggplot(aes(x = reorder(rule, n), y = n)) +
-  geom_col(fill = "firebrick") +
-  coord_flip() +
-  theme_minimal()
+violation_cols_closed_plot <- unique(c(violation_cols_food, "Rodent.and.Insects"))
 
-# Visual 3: Closure trend
+theme_project <- function() {
+  theme_minimal(base_size = 12) +
+    theme(
+      plot.title = element_text(face = "bold", size = 13),
+      plot.subtitle = element_text(color = "gray35"),
+      axis.title = element_text(face = "bold"),
+      axis.text = element_text(color = "gray15"),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_line(color = "gray88"),
+      panel.grid.major.y = element_blank(),
+      plot.title.position = "plot"
+    )
+}
+
+food <- read.csv("FoodInspectionData_cleaned.csv", stringsAsFactors = FALSE)
+closed <- read.csv("Closed_Food_Establishments_cleaned.csv", stringsAsFactors = FALSE)
+
+food$Inspection.Date <- suppressWarnings(ymd(food$Inspection.Date))
+closed$Inspection.Date <- suppressWarnings(ymd(closed$Inspection.Date))
+
+# EDA summary table
+closure_row_share <- nrow(closed) / nrow(food)
+
+eda_summary <- tibble(
+  Metric = c(
+    "Cleaned inspection rows",
+    "Cleaned closure rows",
+    "Distinct closed establishments",
+    "Date range in closure file",
+    "Closure rows / all inspection rows"
+  ),
+  Value = c(
+    nrow(food),
+    nrow(closed),
+    n_distinct(closed$Establishment.ID, na.rm = TRUE),
+    paste(
+      format(min(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d"),
+      "to",
+      format(max(closed$Inspection.Date, na.rm = TRUE), "%Y-%m-%d")
+    ),
+    sprintf("%.2f%%", 100 * closure_row_share)
+  )
+)
+
+kable(eda_summary)
+
+# Missingness table
+missing_tbl <- bind_rows(
+  tibble(
+    dataset = "food",
+    variable = c("Inspection.results", "Inspection.Date", "Zip"),
+    missing_n = c(
+      sum(is.na(food$Inspection.results) | food$Inspection.results == ""),
+      sum(is.na(food$Inspection.Date)),
+      sum(is.na(food$Zip) | food$Zip == "")
+    )
+  ),
+  tibble(
+    dataset = "closed",
+    variable = c("Inspection.Results", "Inspection.Date", "Zip"),
+    missing_n = c(
+      sum(is.na(closed$Inspection.Results) | closed$Inspection.Results == ""),
+      sum(is.na(closed$Inspection.Date)),
+      sum(is.na(closed$Zip) | closed$Zip == "")
+    )
+  )
+)
+
+kable(missing_tbl)
+
+# Visual 1: Overall inspection outcomes
+food %>%
+  count(Inspection.results, sort = TRUE) %>%
+  mutate(Inspection.results = fct_reorder(Inspection.results, n)) %>%
+  ggplot(aes(x = Inspection.results, y = n)) +
+  geom_col(fill = "steelblue", width = 0.72, alpha = 0.95) +
+  geom_text(aes(label = format(n, big.mark = ",")), hjust = 1.05, color = "white", size = 3.2) +
+  coord_flip() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Inspection outcomes in FoodInspectionData",
+    subtitle = "Most inspections are non-closure results; closure outcomes are rare",
+    x = "Inspection result",
+    y = "Count"
+  ) +
+  theme_project()
+
+# Visual 2: Most common out-of-compliance issues among closures
+closed %>%
+  select(any_of(violation_cols_closed_plot)) %>%
+  pivot_longer(everything(), names_to = "rule", values_to = "status") %>%
+  mutate(status = str_trim(as.character(status))) %>%
+  filter(!is.na(status), status == "Out of Compliance") %>%
+  count(rule, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(
+    rule = str_replace_all(rule, "\\.", " "),
+    rule = fct_reorder(rule, n)
+  ) %>%
+  ggplot(aes(x = rule, y = n)) +
+  geom_col(fill = "firebrick", width = 0.72, alpha = 0.92) +
+  coord_flip() +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Top out-of-compliance issues in closed establishments",
+    subtitle = "Top 10 repeated findings among closure events",
+    x = "Inspection rule",
+    y = "Count"
+  ) +
+  theme_project()
+
+# Visual 3: Closure trend over time
 closed %>%
   mutate(month = floor_date(Inspection.Date, "month")) %>%
+  filter(!is.na(month)) %>%
   count(month) %>%
   ggplot(aes(month, n)) +
-  geom_line() +
-  geom_point() +
-  theme_minimal()
+  geom_line(color = "darkgreen", linewidth = 1) +
+  geom_point(color = "darkgreen", size = 2.1, alpha = 0.9) +
+  geom_smooth(method = "lm", se = FALSE, color = "red", linetype = "dashed") +
+  scale_y_continuous(labels = scales::label_comma()) +
+  labs(
+    title = "Monthly number of closure inspections",
+    subtitle = "Dashed line shows the general trend",
+    x = NULL,
+    y = "Count"
+  ) +
+  theme_project()
 
-# visual 4: Top cities with closure inspections
-
-```{r fig.width=8, fig.height=5}
+# Visual 4: Top cities by closure inspection count
 closed %>%
-  mutate(City = str_to_title(str_trim(as.character(City)))) %>%
   filter(!is.na(City), City != "") %>%
   count(City, sort = TRUE) %>%
   slice_head(n = 10) %>%
   mutate(City = fct_reorder(City, n)) %>%
   ggplot(aes(x = City, y = n)) +
-  geom_col(fill = "mediumpurple4") +
+  geom_col(fill = "mediumpurple4", width = 0.72, alpha = 0.92) +
   coord_flip() +
+  scale_y_continuous(labels = scales::label_comma()) +
   labs(
     title = "Top 10 cities by number of closure inspections",
+    subtitle = "Counts reflect closure events in the closure dataset",
     x = "City",
     y = "Closure inspection count"
   ) +
-  theme_minimal()
-```
+  theme_project()
+
+# Visual 5: City closure rate
+city_risk <- food %>%
+  filter(!is.na(City), City != "") %>%
+  count(City, name = "inspection_rows") %>%
+  left_join(
+    closed %>%
+      filter(!is.na(City), City != "") %>%
+      count(City, name = "closure_rows"),
+    by = "City"
+  ) %>%
+  mutate(
+    closure_rows = replace_na(as.integer(closure_rows), 0L),
+    closure_rate = closure_rows / inspection_rows,
+    se = sqrt((closure_rate * (1 - closure_rate)) / inspection_rows),
+    rate_lo = pmax(closure_rate - 1.96 * se, 0),
+    rate_hi = pmin(closure_rate + 1.96 * se, 1)
+  ) %>%
+  filter(inspection_rows >= MIN_INSPECTIONS_CITY)
+
+city_risk %>%
+  arrange(desc(closure_rate)) %>%
+  slice_head(n = 15) %>%
+  mutate(City = fct_reorder(City, closure_rate)) %>%
+  ggplot(aes(x = City, y = closure_rate)) +
+  geom_col(fill = "darkslateblue", alpha = 0.9, width = 0.72) +
+  geom_errorbar(
+    aes(ymin = rate_lo, ymax = rate_hi),
+    width = 0.22,
+    color = "gray35"
+  ) +
+  coord_flip() +
+  scale_y_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  labs(
+    title = "City closure rate: closure rows / inspection rows",
+    subtitle = "Only cities with at least 50 inspection rows are included",
+    x = NULL,
+    y = "Closure rate"
+  ) +
+  theme_project()

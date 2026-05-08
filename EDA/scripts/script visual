@@ -2,7 +2,6 @@ library(tidyverse)
 library(lubridate)
 library(knitr)
 
-MIN_INSPECTIONS_CITY <- 50L
 
 violation_cols_food <- c(
   "Food.from.Approved.Source..C.",
@@ -169,42 +168,28 @@ closed %>%
   ) +
   theme_project()
 
-# Visual 5: City closure rate
-city_risk <- food %>%
-  filter(!is.na(City), City != "") %>%
-  count(City, name = "inspection_rows") %>%
-  left_join(
-    closed %>%
-      filter(!is.na(City), City != "") %>%
-      count(City, name = "closure_rows"),
-    by = "City"
-  ) %>%
-  mutate(
-    closure_rows = replace_na(as.integer(closure_rows), 0L),
-    closure_rate = closure_rows / inspection_rows,
-    se = sqrt((closure_rate * (1 - closure_rate)) / inspection_rows),
-    rate_lo = pmax(closure_rate - 1.96 * se, 0),
-    rate_hi = pmin(closure_rate + 1.96 * se, 1)
-  ) %>%
-  filter(inspection_rows >= MIN_INSPECTIONS_CITY)
-
-city_risk %>%
-  arrange(desc(closure_rate)) %>%
-  slice_head(n = 15) %>%
-  mutate(City = fct_reorder(City, closure_rate)) %>%
-  ggplot(aes(x = City, y = closure_rate)) +
-  geom_col(fill = "darkslateblue", alpha = 0.9, width = 0.72) +
-  geom_errorbar(
-    aes(ymin = rate_lo, ymax = rate_hi),
-    width = 0.22,
-    color = "gray35"
+# Visual 5: Top ZIP codes by closure inspections
+closed %>%
+  filter(!is.na(Zip), Zip != "") %>%
+  count(Zip, sort = TRUE) %>%
+  slice_head(n = 10) %>%
+  mutate(Zip = fct_reorder(Zip, n)) %>%
+  ggplot(aes(x = Zip, y = n)) +
+  geom_col(fill = "darkorange", width = 0.72, alpha = 0.9) +
+  geom_text(
+    aes(label = n),
+    hjust = -0.15,
+    size = 3.5
   ) +
   coord_flip() +
-  scale_y_continuous(labels = scales::label_percent(accuracy = 0.1)) +
+  scale_y_continuous(
+    labels = scales::label_comma(),
+    expand = expansion(mult = c(0, 0.15))
+  ) +
   labs(
-    title = "City closure rate: closure rows / inspection rows",
-    subtitle = "Only cities with at least 50 inspection rows are included",
-    x = NULL,
-    y = "Closure rate"
+    title = "Top 10 ZIP codes by closure inspections",
+    subtitle = "Closure events are not evenly spread across all ZIP codes",
+    x = "ZIP code",
+    y = "Closure inspection count"
   ) +
   theme_project()

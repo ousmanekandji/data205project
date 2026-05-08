@@ -70,7 +70,7 @@ Exported cleaned datasets for analysis
 
 The final cleaned datasets allowed inspection outcomes, closure events, and critical violations to be analyzed consistently across both datasets.
 
-Analysis
+# Analysis
 
 The exploratory analysis looked at:
 
@@ -88,7 +88,7 @@ One important metric used in the project was critical_count, which measures the 
 
 The project also examined whether failed inspections were associated with critical violations and whether higher numbers of critical violations increased the likelihood of closure outcomes.
 
-Final Statistical Analysis
+# Final Statistical Analysis
 
 The final statistical analysis included:
 
@@ -114,7 +114,7 @@ This analysis helps evaluate whether critical violations are related to failed i
 
 Instead of only describing inspection outcomes, the project also tests whether higher numbers of critical violations are statistically associated with more serious inspection outcomes.
 
-Model Results
+# Model Results
 
 The chi-square analysis showed that failed inspections were more likely to contain critical violations than passed inspections.
 
@@ -122,7 +122,7 @@ The logistic regression model showed that higher critical violation counts were 
 
 The results support the idea that recurring critical violations are strong indicators of higher food safety risk.
 
-Key Findings
+# Key Findings
 
 Most inspections result in a pass
 

@@ -1,14 +1,15 @@
-# Exploratory Data Analysis
+# Exploratory Data Analysis (EDA)
 
-## Purpose
-To understand the structure and patterns in the data before deeper analysis.
+This folder contains exploratory visualizations used to understand trends and patterns in the inspection datasets.
+
+## Main Questions
+- What inspection outcomes are most common?
+- What violations appear most often in closure inspections?
+- How do closure counts change over time?
+- Which cities have the highest closure activity?
+- Which cities have the highest closure rates?
 
 ## Key Findings
-
-- Most inspections do not result in closure
-- A small number of violations appear frequently in closure cases
-- Closures occur consistently over time
-- Some cities show higher counts of closures
-
-## Notes
-These findings are descriptive and do not imply causation.
+- Most inspections do not result in closures
+- Certain critical violations appear repeatedly in closure inspections
+- Closure activity varies across cities and time periods

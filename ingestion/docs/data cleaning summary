@@ -1,17 +1,20 @@
-# Data Ingestion and Cleaning
+# Data Cleaning and Ingestion
 
-## Data Sources
-- FoodInspectionData.csv: contains all inspection records
-- Closed_Food_Establishments.csv: subset of inspections resulting in closure
+This folder contains the script used to clean and prepare the raw inspection datasets.
+
+## Files Used
+- FoodInspectionData.csv
+- Closed_Food_Establishments.csv
 
 ## Cleaning Steps
-
-- Removed duplicates
+- Removed duplicate rows
 - Standardized ZIP codes
-- Cleaned city names
-- Converted dates
+- Standardized city names
+- Converted inspection dates into date format
+- Created closure indicator variable
+- Created critical violation count variable
 - Exported cleaned datasets
 
-## Output
+## Output Files
 - FoodInspectionData_cleaned.csv
 - Closed_Food_Establishments_cleaned.csv

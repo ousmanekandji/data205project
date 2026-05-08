@@ -1,130 +1,75 @@
 library(tidyverse)
-library(lubridate)
 library(knitr)
 
-theme_project <- function() {
-  theme_minimal(base_size = 12) +
-    theme(
-      plot.title = element_text(face = "bold", size = 13),
-      plot.subtitle = element_text(color = "gray35"),
-      axis.title = element_text(face = "bold"),
-      axis.text = element_text(color = "gray15"),
-      panel.grid.minor = element_blank(),
-      panel.grid.major.x = element_line(color = "gray88"),
-      panel.grid.major.y = element_blank(),
-      plot.title.position = "plot"
+# Create analysis variables
+food <- food %>%
+  mutate(
+    Has_Critical = if_else(critical_count > 0, "Yes", "No"),
+
+    Outcome_Group = case_when(
+      Inspection.results %in% c("Pass") ~ "Pass",
+      Inspection.results %in% c("Fail") ~ "Fail",
+      TRUE ~ "Other"
     )
-}
-
-or_table_from_glm <- function(model) {
-  s <- summary(model)$coefficients
-  
-  tibble(
-    term = rownames(s),
-    estimate = s[, "Estimate"],
-    se = s[, "Std. Error"],
-    z = s[, "z value"],
-    p_value = s[, "Pr(>|z|)"],
-    OR = exp(s[, "Estimate"]),
-    OR_lo = exp(s[, "Estimate"] - 1.96 * s[, "Std. Error"]),
-    OR_hi = exp(s[, "Estimate"] + 1.96 * s[, "Std. Error"])
   )
-}
 
-food <- read.csv("FoodInspectionData_cleaned.csv", stringsAsFactors = FALSE)
-closed <- read.csv("Closed_Food_Establishments_cleaned.csv", stringsAsFactors = FALSE)
+# Keep only Pass and Fail rows
+chi_data <- food %>%
+  filter(Outcome_Group %in% c("Pass", "Fail"))
 
-food$Inspection.Date <- suppressWarnings(ymd(food$Inspection.Date))
-closed$Inspection.Date <- suppressWarnings(ymd(closed$Inspection.Date))
+# -----------------------------
+# Chi-Square Test
+# -----------------------------
 
-# Logistic regression: closure outcome and critical violation count
-logit_count <- glm(
+chi_table <- table(
+  chi_data$Outcome_Group,
+  chi_data$Has_Critical
+)
+
+kable(chi_table)
+
+chi_result <- chisq.test(chi_table)
+
+chi_result
+
+# -----------------------------
+# Logistic Regression
+# -----------------------------
+
+logit_model <- glm(
   is_closed ~ critical_count,
   data = food,
   family = binomial
 )
 
-or_count <- or_table_from_glm(logit_count)
+summary(logit_model)
 
-kable(
-  or_count,
-  digits = 4,
-  caption = "Model 1: Odds ratios for closure vs critical violation count"
-)
+# Odds ratios
+odds_ratios <- exp(coef(logit_model))
 
-# Logistic regression: selected high-risk violations
-logit_focused <- glm(
-  is_closed ~ v_Food.from.Approved.Source..C. +
-    v_Food.Protected.from.Contamination..C. +
-    v_Cold.Holding.Temperature..C. +
-    v_Hot.and.Cold.Running.Water.Provided..C.,
-  data = food,
-  family = binomial
-)
+odds_ratios
 
-or_focus <- or_table_from_glm(logit_focused) %>%
-  mutate(
-    term = str_replace(term, "^v_", ""),
-    term = case_when(
-      term == "Food.from.Approved.Source..C." ~ "Food from approved source",
-      term == "Food.Protected.from.Contamination..C." ~ "Food protected from contamination",
-      term == "Cold.Holding.Temperature..C." ~ "Cold holding temperature",
-      term == "Hot.and.Cold.Running.Water.Provided..C." ~ "Hot/cold running water",
-      TRUE ~ term
-    )
-  )
+# -----------------------------
+# Analysis Visual
+# -----------------------------
 
-kable(
-  or_focus,
-  digits = 4,
-  caption = "Model 2: Odds ratios for closure vs selected critical violations"
-)
+food %>%
+  filter(Outcome_Group %in% c("Pass", "Fail")) %>%
+  ggplot(aes(x = Outcome_Group, y = critical_count, fill = Outcome_Group)) +
 
-# Poisson trend test: monthly closure counts
-monthly_closures <- closed %>%
-  mutate(month = floor_date(Inspection.Date, "month")) %>%
-  filter(!is.na(month)) %>%
-  count(month, name = "closures") %>%
-  arrange(month) %>%
-  mutate(t = row_number() - 1L)
+  geom_boxplot(alpha = 0.7, outlier.shape = NA) +
 
-trend_model <- glm(
-  closures ~ t,
-  data = monthly_closures,
-  family = poisson(link = "log")
-)
-
-model_coef <- summary(trend_model)$coefficients["t", ]
-p_value <- model_coef["Pr(>|z|)"]
-rate_ratio <- exp(coef(trend_model)[["t"]])
-
-model_results <- tibble(
-  term = "time index",
-  estimate_log_scale = unname(model_coef["Estimate"]),
-  std_error = unname(model_coef["Std. Error"]),
-  z_value = unname(model_coef["z value"]),
-  p_value = unname(p_value),
-  monthly_rate_ratio = unname(rate_ratio),
-  interpretation = ifelse(
-    p_value < 0.05,
-    "Reject H0: evidence of a time trend in monthly closures.",
-    "Fail to reject H0: no strong evidence of a time trend."
-  )
-)
-
-kable(model_results, digits = 4)
-
-# Visual: observed monthly closures with fitted Poisson trend
-monthly_closures %>%
-  mutate(pred = predict(trend_model, type = "response")) %>%
-  ggplot(aes(month, closures)) +
-  geom_col(fill = "steelblue", alpha = 0.35, width = 25) +
-  geom_line(aes(y = pred), color = "firebrick", linewidth = 1.1) +
-  scale_y_continuous(labels = scales::label_comma()) +
-  labs(
-    title = "Observed monthly closures with fitted Poisson trend",
-    subtitle = "Bars show observed counts; line shows model-predicted trend",
-    x = NULL,
-    y = "Monthly closure count"
+  geom_jitter(
+    width = 0.15,
+    alpha = 0.25,
+    size = 1.2
   ) +
-  theme_project()
+
+  labs(
+    title = "Critical violations in Pass vs Fail inspections",
+    subtitle = "Failed inspections generally contain more critical violations",
+    x = "Inspection outcome",
+    y = "Critical violation count"
+  ) +
+
+  theme_minimal(base_size = 13)
